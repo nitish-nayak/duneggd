@@ -115,9 +115,9 @@ class Params:
     _cathode['widthCathodeVoid'] = Q('76.35cm')
     _cathode['lengthCathodeVoid'] = Q('67.0cm')
 
-    _arapuca['ArapucaOut_x'] = Q('65.0cm')
+    _arapuca['ArapucaOut_x'] = Q('65.3cm')
     _arapuca['ArapucaOut_y'] = Q('2.5cm')
-    _arapuca['ArapucaOut_z'] = Q('65.0cm')
+    _arapuca['ArapucaOut_z'] = Q('65.3cm')
     _arapuca['ArapucaIn_x'] = Q('60.0cm')
     _arapuca['ArapucaIn_y'] = Q('2.0cm')
     _arapuca['ArapucaIn_z'] = Q('60.0cm')
@@ -127,7 +127,7 @@ class Params:
     _arapuca['GapPD'] = Q('0.5cm')
     _arapuca['FrameToArapucaSpace'] = Q('1.0cm')
     _arapuca['FrameToArapucaSpaceLat'] = Q('10.0cm')
-    _arapuca['VerticalPDdist'] = Q('75.0cm')
+    _arapuca['VerticalPDdist'] = Q('75.6cm')
     _arapuca['FirstFrameVertDist'] = Q('40.0cm')
 
     # X-Arapuca mesh switch (off by default, opt-in via cfg)

@@ -158,10 +158,13 @@ class ArapucaBuilder(gegede.builder.Builder):
                                   rmin = rmin, rmax = rmax,
                                   dz = 0.5*tube_len_h,
                                   sphi = Q('0deg'), dphi = Q('360deg'))
+        # dz shrunk from perl's `+ 2*tor_rad` padding to `+ 2*1cm`: the wider perl box was
+        # extending into adjacent meshes and into the gaseous-argon layer at the cryostat top.
+        # See protodunevd/xarapuca.py construct_membrane_mesh for the original observation.
         module = geom.shapes.Box('ArapucaMeshModule',
                                  dx = 0.5*(inner_len_h + 2*(rmax + tor_rad)),
                                  dy = 0.5*(2*rod_rmax + Q('1cm')),
-                                 dz = 0.5*(inner_len_v + 2*(rmax + tor_rad)))
+                                 dz = 0.5*(inner_len_v + 2*(rmax + Q('1cm'))))
         rod_v = geom.shapes.Tubs('ArapucaMeshRod_vertical',
                                  rmin = rod_rmin, rmax = rod_rmax,
                                  dz = 0.5*inner_len_v,

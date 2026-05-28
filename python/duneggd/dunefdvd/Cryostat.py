@@ -589,8 +589,14 @@ class CryostatBuilder(gegede.builder.Builder):
                 cryo_LV.placements.append(place_lat.name)
 
                 # Place membrane mesh just inside the arapuca window, mirroring
-                # perl place_MeshLateral (lines 3241-3280)
+                # perl place_MeshLateral (lines 3241-3280). Mesh world-x extent (76.7cm) is
+                # slightly larger than VerticalPDdist (75.6cm), so adjacent meshes would
+                # otherwise overlap. Shift each subsequent mesh in a column by 1.2cm toward
+                # the cathode to leave a small gap between adjacent mesh containers; the
+                # mesh tile is still much larger than the arapuca window so it still covers it.
                 if mesh_LV is not None:
+                    mesh_extra = (ara % 4) * Q('1.2cm')
+                    mesh_x = ara_x - mesh_extra if ara < 8 else ara_x + mesh_extra
                     if ara % 8 < 4:
                         mesh_y = ara_y + 0.5*globals.get("ArapucaOut_y") +                                          \
                                  globals.get("Distance_Mesh_Arapuca_window")
@@ -603,7 +609,7 @@ class CryostatBuilder(gegede.builder.Builder):
                                                           volume = mesh_LV,
                                                           pos = geom.structure.Position('pos%s%d-Lat%d' %           \
                                                                                             (mesh_name, ara, j),
-                                                                                        x = ara_x,
+                                                                                        x = mesh_x,
                                                                                         y = mesh_y,
                                                                                         z = ara_z),
                                                           rot = mesh_rot)
