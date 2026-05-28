@@ -467,6 +467,12 @@ class Params:
         cls._arapuca['CathodeMeshInnerStructureLength_vertical'] = cls._cathode['lengthCathodeVoid']
         cls._arapuca['CathodeMeshInnerStructureLength_horizontal'] = cls._cathode['widthCathodeVoid']
 
+        # shift the resistive mesh strip cluster center onto the cathode-void center
+        cls._arapuca['CathodeMeshOffset_Y'] = 1.5*cls._cathode['widthCathodeVoid'] +                                       \
+                                              2*cls._cathode['CathodeBorder'] -                                            \
+                                              0.5*(cls._arapuca['CathodeMeshInnerStructureNumberOfStrips_vertical'] - 1)*  \
+                                              cls._arapuca['CathodeMeshInnerStructureSeparation']
+
         # add it to global list
         cls._params.update(cls._tpc)
         cls._params.update(cls._cryostat)

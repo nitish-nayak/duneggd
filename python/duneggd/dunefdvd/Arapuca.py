@@ -343,8 +343,11 @@ class ArapucaBuilder(gegede.builder.Builder):
 
         # post-vertical-loop $ii in perl equals n_vert; first horizontal union uses that
         ii = n_vert
-        horiz_y = 0.5*len_h - sep + 0.5*width
-        horiz_z = -0.5*len_v + sep - 0.5*width
+        # center horizontal strips on the vertical-strip cluster center in y, and center the
+        # cluster of horizontal strips at z=0 in local. Perl's formulas only collapse to these
+        # values when wcv == (n_vert+1)*sep - width (protodune-specific).
+        horiz_y = 0.5*(n_vert - 1)*sep
+        horiz_z = -0.5*(n_horiz - 1)*sep
         meshShape = geom.shapes.Boolean('CathodeMeshunion'+str(ii),
                                         type = 'union',
                                         first = meshShape, second = strip_h,
