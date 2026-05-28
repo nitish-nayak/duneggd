@@ -113,13 +113,16 @@ class CryostatBuilder(gegede.builder.Builder):
             cathode = self.get_builder("CathodeGrid")
             cathode_LV = cathode.get_volume()
 
+            # fetch the cathode-arapuca conductive mesh LV (only added when switch is on)
+            mesh_cath_LV = arapuca.get_volume("volCathodeArapucaMesh") if globals.get("ArapucaMesh_switch") else None
+
             # place the volumes that go here
             tpcenc_LV = self.placeTPC(geom, tpc_LV, tpcenc_LV)
             tpcenc_LV = self.placeCathodeAndAnode(geom, cathode_LV, anodePlate_LV, anodePlateBottom_LV, tpcenc_LV)
             if globals.get("nCRM_x") != 2:
-                tpcenc_LV = self.placeOpDetsCathode(geom, arapuca_LV[0], tpcenc_LV)
+                tpcenc_LV = self.placeOpDetsCathode(geom, arapuca_LV[0], tpcenc_LV, mesh_LV=mesh_cath_LV)
             else:
-                tpcenc_LV = self.placeOpDetsCathode(geom, arapuca_LV[1], tpcenc_LV)
+                tpcenc_LV = self.placeOpDetsCathode(geom, arapuca_LV[1], tpcenc_LV, mesh_LV=mesh_cath_LV)
 
             # place it inside the cryostat
             tpcenc_x = 0.5*(globals.get("Argon_x") - globals.get("TPCEnclosure_x")) -                               \
@@ -295,7 +298,7 @@ class CryostatBuilder(gegede.builder.Builder):
         return tpcenc_LV
 
     # upstream logic needed for arapuca vs arapurca double passed as argument
-    def placeOpDetsCathode(self, geom, arapuca_LV, tpcenc_LV):
+    def placeOpDetsCathode(self, geom, arapuca_LV, tpcenc_LV, mesh_LV=None):
         if globals.get("pdsconfig"):
             return tpcenc_LV
 
@@ -303,6 +306,14 @@ class CryostatBuilder(gegede.builder.Builder):
                      globals.get("anodePlateWidth") - 0.5*globals.get("heightCathode")
         frCenter_y = -0.5*globals.get("TPCEnclosure_y") + 0.5*globals.get("widthCathode")
         frCenter_z = -0.5*globals.get("TPCEnclosure_z") + 0.5*globals.get("lengthCathode")
+
+        # offset between arapuca center and cathode-void center along y
+        # (derived from arapuca placement constraints; matches perl literal 5.475cm for protodune values)
+        mesh_y_offset = 0.5*globals.get("widthCathodeVoid") - globals.get("GapPD") -                                \
+                        0.5*globals.get("ArapucaOut_x")
+        # face-to-face displacement of the mesh from the cathode block centre in x
+        mesh_x_offset = 0.5*globals.get("heightCathode") - 2*globals.get("CathodeArapucaMeshRodRadious")
+        mesh_name = re.sub(r'vol', '', mesh_LV.name) if mesh_LV is not None else None
 
         idx = 0
         for ii in range(globals.get("nCRM_y")//2):
@@ -331,6 +342,30 @@ class CryostatBuilder(gegede.builder.Builder):
                                                                                     z = ara_z),
                                                      rot = "rPlus90AboutXPlus90AboutZ")
                     tpcenc_LV.placements.append(place.name)
+
+                    # Place conductive mesh on top face (always) and bottom face (only when both
+                    # drift volumes are active). Mirrors perl place_MeshCathode (lines 3146-3186).
+                    if mesh_LV is not None:
+                        mesh_y = ara_y - mesh_y_offset
+                        place_top = geom.structure.Placement('place%s0%d-%d_inTPCEnc' % (mesh_name, ara, idx),
+                                                             volume = mesh_LV,
+                                                             pos = geom.structure.Position('pos%s0%d-Frame-%d-%d' % \
+                                                                                            (mesh_name, ara, ii, jj),
+                                                                                            x = ara_x + mesh_x_offset,
+                                                                                            y = mesh_y,
+                                                                                            z = ara_z),
+                                                             rot = "rPlus90AboutX")
+                        tpcenc_LV.placements.append(place_top.name)
+                        if globals.get("nCRM_x") == 2:
+                            place_bot = geom.structure.Placement('place%s1%d-%d_inTPCEnc' % (mesh_name, ara, idx),
+                                                                 volume = mesh_LV,
+                                                                 pos = geom.structure.Position('pos%s1%d-Frame-%d-%d' % \
+                                                                                                (mesh_name, ara, ii, jj),
+                                                                                                x = ara_x - mesh_x_offset,
+                                                                                                y = mesh_y,
+                                                                                                z = ara_z),
+                                                                 rot = "rPlus90AboutX")
+                            tpcenc_LV.placements.append(place_bot.name)
                 idx += 1
                 frCenter_z += globals.get("lengthCathode")
                 if (globals.get("nSST2_z") == 0) and ((jj+1) % 3 == 0) and (jj > 0):
