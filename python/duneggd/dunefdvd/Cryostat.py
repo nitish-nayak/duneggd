@@ -22,6 +22,53 @@ def make_volume(geom, material, shape, name='', aux=False):
         lv.params.append(("Efield","0*V/cm"))
     return lv
 
+# Returns the set of (myi, mzi) cells in a frame's 4x4 mesh grid that an arapuca
+# occupies. Each arapuca uses list_posy_bot[ara] x list_posz_bot[ara] for its
+# position; the relative ordering of those entries gives a fixed list-index to
+# cell-index lookup independent of cathode size. Standard frame:
+#
+#              z direction (mzi) →
+#          mzi=0   mzi=1   mzi=2   mzi=3
+#        +-------+-------+-------+-------+
+#     0  |       |       |  A3   |       |
+#        +-------+-------+-------+-------+
+#     1  |  A1   |       |       |       |
+#        +-------+-------+-------+-------+
+#     2  |       |       |       |  A2   |
+#        +-------+-------+-------+-------+
+#     3  |       |  A0   |       |       |
+#        +-------+-------+-------+-------+
+#
+# Edge frames swap one arapuca to a neighboring list-index (mirroring the same
+# edge corrections in placeOpDetsCathode) to avoid hanging off the cathode array.
+# E.g. at the first y-row (ii=0), ara 0 shifts from row myi=3 to row myi=2:
+#
+#    non-edge frame              ii==0 edge frame
+#
+#    mzi: 0  1  2  3              mzi: 0  1  2  3
+#      +--+--+--+--+                  +--+--+--+--+
+#   0  |  |  |A3|  |               0  |  |  |A3|  |
+#      +--+--+--+--+                  +--+--+--+--+
+#   1  |A1|  |  |  |               1  |A1|  |  |  |
+#      +--+--+--+--+                  +--+--+--+--+
+#   2  |  |  |  |A2|               2  |  |A0|  |A2|    <- A0 here
+#      +--+--+--+--+                  +--+--+--+--+
+#   3  |  |A0|  |  |               3  |  |  |  |  |    <- row 3 empty
+#      +--+--+--+--+                  +--+--+--+--+
+#
+# These 4 arapuca cells get the conductive cathode-arapuca mesh (placed in
+# placeOpDetsCathode); the remaining 12 cells get the resistive mesh.
+def arapucaCells(ii, jj, nii, njj):
+    LIST_TO_MYI = [3, 1, 2, 0]
+    LIST_TO_MZI = [1, 0, 3, 2]
+    y_idx = [0, 1, 2, 3]
+    z_idx = [0, 1, 2, 3]
+    if ii == 0:       y_idx[0] = 2
+    if ii == nii - 1: y_idx[3] = 1
+    if jj == 0:       z_idx[1] = 0
+    if jj == njj - 1: z_idx[2] = 3
+    return {(LIST_TO_MYI[y_idx[a]], LIST_TO_MZI[z_idx[a]]) for a in range(4)}
+
 class CryostatBuilder(gegede.builder.Builder):
     def configure(self, **kwds):
         if not set(kwds).issubset(globals.Cryostat): # no unknown keywords
@@ -113,8 +160,9 @@ class CryostatBuilder(gegede.builder.Builder):
             cathode = self.get_builder("CathodeGrid")
             cathode_LV = cathode.get_volume()
 
-            # fetch the cathode-arapuca conductive mesh LV (only added when switch is on)
+            # fetch the cathode-arapuca conductive mesh and resistive mesh LVs
             mesh_cath_LV = arapuca.get_volume("volCathodeArapucaMesh") if globals.get("ArapucaMesh_switch") else None
+            mesh_resist_LV = arapuca.get_volume("volCathodeMeshunion") if globals.get("ArapucaMesh_switch") else None
 
             # place the volumes that go here
             tpcenc_LV = self.placeTPC(geom, tpc_LV, tpcenc_LV)
@@ -123,6 +171,7 @@ class CryostatBuilder(gegede.builder.Builder):
                 tpcenc_LV = self.placeOpDetsCathode(geom, arapuca_LV[0], tpcenc_LV, mesh_LV=mesh_cath_LV)
             else:
                 tpcenc_LV = self.placeOpDetsCathode(geom, arapuca_LV[1], tpcenc_LV, mesh_LV=mesh_cath_LV)
+            tpcenc_LV = self.placeResistiveMeshCathode(geom, mesh_resist_LV, tpcenc_LV)
 
             # place it inside the cryostat
             tpcenc_x = 0.5*(globals.get("Argon_x") - globals.get("TPCEnclosure_x")) -                               \
@@ -382,6 +431,71 @@ class CryostatBuilder(gegede.builder.Builder):
                 frCenter_y += globals.get("gapSST_y")
 
             frCenter_z = -0.5*globals.get("TPCEnclosure_z") + 0.5*globals.get("lengthCathode")
+        return tpcenc_LV
+
+    def placeResistiveMeshCathode(self, geom, mesh_LV, tpcenc_LV):
+        if mesh_LV is None or not globals.get("Cathode_switch") or globals.get("pdsconfig"):
+            return tpcenc_LV
+
+        nii = globals.get("nCRM_y") // 2
+        njj = globals.get("nCRM_z") // 2
+        wcv = globals.get("widthCathodeVoid")
+        lcv = globals.get("lengthCathodeVoid")
+        cb = globals.get("CathodeBorder")
+        h = globals.get("heightCathode")
+        t = globals.get("CathodeMeshInnerStructureThickness")
+        offsetY = globals.get("CathodeMeshOffset_Y")
+
+        # mesh sits flush with cathode top/bottom face (perl line 3200's
+        # BotMesh_X formula is a typo; using the correct symmetric form here)
+        x_face_offset = 0.5*(h - t)
+        frCenter_x = 0.5*globals.get("TPCEnclosure_x") - globals.get("TPC_x") - \
+                     globals.get("anodePlateWidth") - 0.5*h
+
+        mesh_name = re.sub(r'vol', '', mesh_LV.name)
+
+        idx = 0
+        frCenter_y = -0.5*globals.get("TPCEnclosure_y") + 0.5*globals.get("widthCathode")
+        for ii in range(nii):
+            frCenter_z = -0.5*globals.get("TPCEnclosure_z") + 0.5*globals.get("lengthCathode")
+            for jj in range(njj):
+                skip_cells = arapucaCells(ii, jj, nii, njj)
+                for myi in range(4):
+                    for mzi in range(4):
+                        if (myi, mzi) in skip_cells:
+                            continue
+                        Mesh_Y = frCenter_y + offsetY - myi*wcv - myi*cb
+                        if myi > 1:
+                            Mesh_Y -= cb
+                        Mesh_Z = frCenter_z + (mzi - 1.5)*lcv + (mzi - 2.0)*cb
+                        if mzi > 1:
+                            Mesh_Z += cb
+
+                        sides = [('top', frCenter_x + x_face_offset)]
+                        if globals.get("nCRM_x") == 2:
+                            sides.append(('bot', frCenter_x - x_face_offset))
+                        for side, mesh_x in sides:
+                            pos_name = 'pos%s_%s_%d_%d-Frame-%d-%d' % (mesh_name, side, myi, mzi, ii, jj)
+                            place_name = 'place%s_%s_%d_%d-%d_inTPCEnc' % (mesh_name, side, myi, mzi, idx)
+                            pos = geom.structure.Position(pos_name, x=mesh_x, y=Mesh_Y, z=Mesh_Z)
+                            place = geom.structure.Placement(place_name, volume=mesh_LV, pos=pos)
+                            tpcenc_LV.placements.append(place.name)
+
+                idx += 1
+                # advance z (mirror placeOpDetsCathode update logic)
+                frCenter_z += globals.get("lengthCathode")
+                if (globals.get("nSST2_z") == 0) and ((jj+1) % 3 == 0) and (jj > 0):
+                    frCenter_z += globals.get("gapSST1_z")
+                if (globals.get("nSST2_z") > 0) and (jj == 0):
+                    frCenter_z += globals.get("gapSST2_z")
+                if (globals.get("nSST2_z") > 0) and (jj % 3 == 0) and (jj > 0) and (jj < globals.get("nCRM_z")/2 - 2):
+                    frCenter_z += globals.get("gapSST1_z")
+                if (globals.get("nSST2_z") > 0) and (jj % 3 == 0) and (jj >= globals.get("nCRM_z")/2 - 2):
+                    frCenter_z += globals.get("gapSST2_z")
+
+            frCenter_y += globals.get("widthCathode")
+            if ((ii+1) % 2 == 0) and (ii > 0):
+                frCenter_y += globals.get("gapSST_y")
         return tpcenc_LV
 
     def placeFieldShaper(self, geom, fs_LV, fsslim_LV, cryo_LV, reversed):

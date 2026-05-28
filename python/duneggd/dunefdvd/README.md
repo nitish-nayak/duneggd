@@ -27,4 +27,6 @@ workspace = 4 and simple = True : 2x8x40
 For visualization, one can refer to `gl.C` or `geoDisplay.C` (former having more flexibility in turning on-off certain volumes)
 For checking overlaps, one can run `check_overlap.C`
 
+X-Arapuca mesh structures (lateral membrane mesh, cathode-side conductive mesh, cathode resistive mesh) ported from `generate_protodunevd_v5_refactored.pl` are off by default. Set `ArapucaMesh_switch = True` in the `[Arapuca]` section of the cfg to enable; mesh parameters live in the `_arapuca` group of `utils/globals.py`.
+
 NB : v7 differs from v6 by making the CRP gaps more realistic, both top and bottom. The workspace options mean different things now, reflecting the changes in the [perl](https://github.com/DUNE/dunecore/blob/develop/dunecore/Geometry/gdml/generate_dunevd10kt_3view_30deg_v7_refactored.pl) script.
