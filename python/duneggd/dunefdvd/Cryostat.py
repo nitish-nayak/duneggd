@@ -133,8 +133,11 @@ class CryostatBuilder(gegede.builder.Builder):
                                                                                   y = tpcenc_y,
                                                                                   z = tpcenc_z))
             cryo_LV.placements.append(place_tpcenc.name)
+        # fetch the membrane mesh LV (only added by Arapuca builder when switch is on)
+        mesh_lat_LV = arapuca.get_volume("volArapucaMesh") if globals.get("ArapucaMesh_switch") else None
+
         # place the other optical components
-        cryo_LV = self.placeOpDetsLateral(geom, arapuca_LV[0], cryo_LV)
+        cryo_LV = self.placeOpDetsLateral(geom, arapuca_LV[0], cryo_LV, mesh_LV=mesh_lat_LV)
         cryo_LV = self.placeOpDetsShortLateral(geom, arapuca_LV[0], cryo_LV)
         cryo_LV = self.placeOpDetsMembOnly(geom, arapuca_LV[0], cryo_LV)
         # place the field shaper
@@ -387,7 +390,7 @@ class CryostatBuilder(gegede.builder.Builder):
                 cryo_LV.placements.append(place_slim.name)
         return cryo_LV
 
-    def placeOpDetsLateral(self, geom, arapuca_LV, cryo_LV):
+    def placeOpDetsLateral(self, geom, arapuca_LV, cryo_LV, mesh_LV=None):
         if (globals.get("pdsconfig") != 0 or globals.get("nCRM_y") != 8):
             return cryo_LV
 
@@ -397,6 +400,7 @@ class CryostatBuilder(gegede.builder.Builder):
                      (40 - globals.get("nCRM_z"))*0.25*globals.get("lengthCathode")
 
         name = re.sub(r'vol', '', arapuca_LV.name)
+        mesh_name = re.sub(r'vol', '', mesh_LV.name) if mesh_LV is not None else None
         for j in range(globals.get("nCRM_z")//2):
             ara_z = frCenter_z
             ara_x = frCenter_x - globals.get("FirstFrameVertDist")
@@ -430,6 +434,27 @@ class CryostatBuilder(gegede.builder.Builder):
                                                                                    z = ara_z),
                                                      rot = rotation)
                 cryo_LV.placements.append(place_lat.name)
+
+                # Place membrane mesh just inside the arapuca window, mirroring
+                # perl place_MeshLateral (lines 3241-3280)
+                if mesh_LV is not None:
+                    if ara % 8 < 4:
+                        mesh_y = ara_y + 0.5*globals.get("ArapucaOut_y") +                                          \
+                                 globals.get("Distance_Mesh_Arapuca_window")
+                        mesh_rot = "rPlus90AboutY"
+                    else:
+                        mesh_y = ara_y - 0.5*globals.get("ArapucaOut_y") -                                          \
+                                 globals.get("Distance_Mesh_Arapuca_window")
+                        mesh_rot = "rPlus180AboutXPlus90AboutY"
+                    place_mesh = geom.structure.Placement('place%s%d-Lat%d' % (mesh_name, ara, j),
+                                                          volume = mesh_LV,
+                                                          pos = geom.structure.Position('pos%s%d-Lat%d' %           \
+                                                                                            (mesh_name, ara, j),
+                                                                                        x = ara_x,
+                                                                                        y = mesh_y,
+                                                                                        z = ara_z),
+                                                          rot = mesh_rot)
+                    cryo_LV.placements.append(place_mesh.name)
             frCenter_z += globals.get("lengthCathode")
         return cryo_LV
 
