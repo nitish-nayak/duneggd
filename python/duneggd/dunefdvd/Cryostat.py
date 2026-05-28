@@ -356,8 +356,8 @@ class CryostatBuilder(gegede.builder.Builder):
         frCenter_y = -0.5*globals.get("TPCEnclosure_y") + 0.5*globals.get("widthCathode")
         frCenter_z = -0.5*globals.get("TPCEnclosure_z") + 0.5*globals.get("lengthCathode")
 
-        # offset between arapuca center and cathode-void center along y
-        # (derived from arapuca placement constraints; matches perl literal 5.475cm for protodune values)
+        # magnitude of the offset between arapuca center and cathode-void center along y
+        # (matches perl literal 5.475cm for protodune values; sign per arapuca below)
         mesh_y_offset = 0.5*globals.get("widthCathodeVoid") - globals.get("GapPD") -                                \
                         0.5*globals.get("ArapucaOut_x")
         # face-to-face displacement of the mesh from the cathode block centre in x
@@ -392,10 +392,14 @@ class CryostatBuilder(gegede.builder.Builder):
                                                      rot = "rPlus90AboutXPlus90AboutZ")
                     tpcenc_LV.placements.append(place.name)
 
-                    # Place conductive mesh on top face (always) and bottom face (only when both
-                    # drift volumes are active). Mirrors perl place_MeshCathode (lines 3146-3186).
+                    # Place conductive mesh at the cathode-void center on top face (always) and
+                    # bottom face (only when both drift volumes are active). Sign of mesh_y_offset
+                    # depends on which list_posy_bot index this arapuca uses (which side of the
+                    # void GapPD constrains it from): indices 0,1 -> +offset, indices 2,3 -> -offset.
                     if mesh_LV is not None:
-                        mesh_y = ara_y - mesh_y_offset
+                        mesh_y = ara_y + mesh_y_offset if ara < 2 else ara_y - mesh_y_offset
+                        if ii == 0 and ara == 0:                            mesh_y = ara_y - mesh_y_offset
+                        if ii == globals.get("nCRM_y")//2 - 1 and ara == 3: mesh_y = ara_y + mesh_y_offset
                         place_top = geom.structure.Placement('place%s0%d-%d_inTPCEnc' % (mesh_name, ara, idx),
                                                              volume = mesh_LV,
                                                              pos = geom.structure.Position('pos%s0%d-Frame-%d-%d' % \
