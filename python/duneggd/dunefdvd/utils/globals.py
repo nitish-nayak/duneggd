@@ -130,6 +130,38 @@ class Params:
     _arapuca['VerticalPDdist'] = Q('75.0cm')
     _arapuca['FirstFrameVertDist'] = Q('40.0cm')
 
+    # X-Arapuca mesh switch (off by default, opt-in via cfg)
+    _arapuca['ArapucaMesh_switch'] = False
+
+    # Membrane X-Arapuca mesh parameters (perl gen_ArapucaMesh, lines 2283-2295)
+    _arapuca['ArapucaMeshTubeLength_vertical'] = Q('65.3cm')
+    _arapuca['ArapucaMeshTubeLength_horizontal'] = Q('72.4cm')
+    _arapuca['ArapucaMeshInnerRadious'] = Q('0cm')
+    _arapuca['ArapucaMeshOuterRadious'] = Q('0.6cm')
+    _arapuca['ArapucaMeshTorRad'] = Q('5cm')
+
+    _arapuca['ArapucaMeshInnerStructureLength_vertical'] = Q('73.5cm')
+    _arapuca['ArapucaMeshInnerStructureLength_horizontal'] = Q('80.9cm')
+    _arapuca['ArapucaMeshRodInnerRadious'] = Q('0cm')
+    _arapuca['ArapucaMeshRodOuterRadious'] = Q('0.1cm')
+    _arapuca['ArapucaMeshInnerStructureNumberOfBars_vertical'] = 11
+    _arapuca['ArapucaMeshInnerStructureNumberOfBars_horizontal'] = 9
+
+    # Cathode X-Arapuca conductive mesh parameters (perl gen_ArapucaMesh, lines 2300-2306)
+    _arapuca['CathodeArapucaMeshRodRadious'] = Q('0.063cm')/2 # cm
+    _arapuca['CathodeArapucaMeshRodSeparation'] = Q('1.27cm') # center to center of cathode X-ARAPUCA mesh profiles in cm
+    _arapuca['CathodeArapucaMesh_verticalOffset'] = Q('0.525cm')
+    _arapuca['CathodeArapucaMesh_horizontalOffset'] = Q('0.605cm')
+    _arapuca['CathodeArapucaMeshOffset_Y'] = Q('0.5cm') # cm
+
+    # Cathode resistive mesh parameters (perl gen_CathodeMesh, lines 302-310)
+    _arapuca['CathodeMeshInnerStructureWidth'] = Q('0.25cm')
+    _arapuca['CathodeMeshInnerStructureThickness'] = Q('0.05cm') # No info about it in blueprints
+    _arapuca['CathodeMeshInnerStructureSeparation'] = Q('2.5cm')
+    _arapuca['CathodeMeshInnerStructureNumberOfStrips_vertical'] = 30
+    _arapuca['CathodeMeshInnerStructureNumberOfStrips_horizontal'] = 26
+    _arapuca['CathodeMeshOffset_Y'] = Q('87.625cm') # cm The Y coordinate of the first cathode mesh in place.
+
     _params.update(_world)
     _params.update(_tpc)
     _params.update(_cryostat)
@@ -425,6 +457,15 @@ class Params:
         cls._arapuca['list_posz_bot'][2]=-cls._arapuca['list_posz_bot'][1]
         cls._arapuca['list_posy_bot'][3]=-cls._arapuca['list_posy_bot'][0]
         cls._arapuca['list_posz_bot'][3]=-cls._arapuca['list_posz_bot'][0]
+
+        # X-Arapuca mesh derived parameters (mirror perl gen_ArapucaMesh, lines 2293,2297,2302-2303
+        # and perl gen_CathodeMesh, lines 300-301)
+        cls._arapuca['ArapucaMeshInnerStructureSeparation'] = Q('7.388cm') + cls._arapuca['ArapucaMeshRodOuterRadious']
+        cls._arapuca['Distance_Mesh_Arapuca_window'] = Q('1.8cm') + cls._arapuca['ArapucaMeshOuterRadious']
+        cls._arapuca['CathodeArapucaMeshNumberOfBars_vertical'] = cls._cathode['lengthCathodeVoid']/Q('1.27cm') # 60.827 for protodune cathode void
+        cls._arapuca['CathodeArapucaMeshNumberOfBars_horizontal'] = cls._cathode['widthCathodeVoid']/Q('1.27cm') # 52.95 for protodune cathode void
+        cls._arapuca['CathodeMeshInnerStructureLength_vertical'] = cls._cathode['lengthCathodeVoid']
+        cls._arapuca['CathodeMeshInnerStructureLength_horizontal'] = cls._cathode['widthCathodeVoid']
 
         # add it to global list
         cls._params.update(cls._tpc)
