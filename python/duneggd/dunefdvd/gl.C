@@ -169,21 +169,33 @@ void gl()
 {
     gSystem->IgnoreSignal(kSigSegmentationViolation, true);
     TEveManager::Create();
-    TGeoManager::Import("dunevd10kt_v7_full10kt_ggd_nowires.gdml");
+    // TGeoManager::Import("dunevd10kt_v7_1x8x14_ggd_nowires.gdml");
     // TGeoManager::Import("dunevd10kt_v7_2x8x40_ggd_nowires.gdml");
+    TGeoManager::Import("dunevd10kt_v7_full10kt_ggd_nowires.gdml");
 
     TGeoNode* world = gGeoManager->GetTopNode();
 
     // Define target volume name to be printed by the main gEve ...
-    //TString targetVolume = "volTPC_1";  // Change this to your desired volume name
-    TString targetVolume = "volWorld";
+    TString targetVolume = "volEnclosureCryostat";
     TString specialVolume = "volTPC";  // Change this to your desired special volume
-    // TString targetVolume = "volTPCPlaneU";
-    // TString specialVolume = "volTPCWireU";  // Change this to your desired special volume
 
     // Initialize invisible patterns with flags
 
     gTransparentPatterns = {
+        // X-Arapuca mesh wrappers (LAr-filled containers): make nearly transparent so the
+        // inner steel rods/frame are visible. Pattern uses trailing underscore so it matches
+        // only the wrapper instances (volArapucaMesh_0, _1, ...) and not the inner rod
+        // volumes (volArapucaMeshRod_*) which start with "volArapucaMesh" but then "R".
+        TransparentPattern("volArapucaMesh_", 90),
+        TransparentPattern("volCathodeArapucaMesh_", 90),
+        // make the arapuca tile and its enclosure see-through so meshes in front are visible
+        TransparentPattern("Arapuca", 50),
+        // cathode block: see-through so resistive mesh tiles on both faces stand out
+        TransparentPattern("CathodeGrid", 60),
+        TransparentPattern("AnodePlate", 70),
+        // TransparentPattern("FieldShaper", 60),
+        TransparentPattern("TPCEnclosure", 60),
+        TransparentPattern("EnclosureTPC", 60),
         TransparentPattern("Rock", 60),
         TransparentPattern("RadioRock", 60),
         TransparentPattern("ShotBox", 60),
@@ -191,9 +203,6 @@ void gl()
         TransparentPattern("Grout", 60),
         TransparentPattern("Concrete", 60),
         TransparentPattern("Shotcrete", 60),
-        TransparentPattern("FieldShaper", 60),
-        TransparentPattern("TPCEnclosure", 60),
-        TransparentPattern("EnclosureTPC", 60),
     };
 
     gInvisiblePatterns = {
@@ -204,20 +213,13 @@ void gl()
         InvisiblePattern("Foam", true),
         InvisiblePattern("SteelSupport", true),
         InvisiblePattern("SteelShell", true),
-        // InvisiblePattern("ShieldBlock", true),
-        // InvisiblePattern("ShieldingFloor", true),
-        // InvisiblePattern("boxshape", true),
-        // InvisiblePattern("Belt", true),
-        // InvisiblePattern("IBeam", true),
-        // InvisiblePattern("Shield", true),
-        // InvisiblePattern("boxshape", true),
-        // InvisiblePattern("SupportEnc", true),
-        InvisiblePattern("Arapuca", true),
-        InvisiblePattern("FieldShaper", true),
+        // hide TPC drift volume content so cathode + meshes aren't obscured
+        InvisiblePattern("TPCActive", true),
+        InvisiblePattern("TPCPlaneU", true),
+        InvisiblePattern("TPCPlaneV", true),
+        InvisiblePattern("TPCPlaneZ", true),
+        // InvisiblePattern("FieldShaper", true),
         InvisiblePattern("GaseousArgon", true),
-        // InvisiblePattern("EnclosureTPC", true),
-        // InvisiblePattern("EnclosureTPC", false),
-        // InvisiblePattern("TPCEnclosure", false),
         // InvisiblePattern("Cathode", true),
         // // InvisiblePattern("AnodePlate", true),
         // InvisiblePattern("TPCPlane", true),
@@ -226,6 +228,17 @@ void gl()
         // InvisiblePattern("Wire", false),
         // InvisiblePattern("CRT", true),
         // InvisiblePattern("Argon", false)
+        // InvisiblePattern("Rock", true),
+        // InvisiblePattern("RadioRock", true),
+        // InvisiblePattern("ShotBox", true),
+        // InvisiblePattern("Shotbox", true),
+        // InvisiblePattern("Grout", true),
+        // InvisiblePattern("Concrete", true),
+        // InvisiblePattern("Shotcrete", true),
+        // InvisiblePattern("IBeam", true),
+        // InvisiblePattern("Belt", true),
+        // InvisiblePattern("boxshape", true),
+        // InvisiblePattern("ShieldBlock", true),
     };
 
     // Initialize name mappings
@@ -257,17 +270,7 @@ void gl()
     gGeoManager->SetVisOption(1);
     gGeoManager->SetVisLevel(5);
     if (gSpecialNode) {
-        // gTargetNode->Draw("ogl");
         gSpecialNode->Draw("ogl");
-        // std::cout << "Is on screen : " << gSpecialNode->IsOnScreen() << std::endl;
-        // TEveGeoTopNode* top = new TEveGeoTopNode(gGeoManager, gSpecialNode);
-        // gEve->AddGlobalElement(top);
-        // std::cout << "test " << std::endl;
-        // TGLViewer * v = (TGLViewer *)gPad->GetViewer3D();
-        // v->SetStyle(TGLRnrCtx::kOutline);
-        // v->SetSmoothPoints(kTRUE);
-        // v->SetLineScale(0.5);
-        // v->UpdateScene();
     }
     // Redraw the scene
     gEve->Redraw3D(kTRUE);
