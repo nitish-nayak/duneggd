@@ -17,3 +17,4 @@ def construct_definitions(geom):
     rPlus90AboutXMinux90AboutY = geom.structure.Rotation("rPlus90AboutXMinux90AboutY", x="90deg", y="270deg", z="0deg")
     rPlus90AboutZ = geom.structure.Rotation("rPlus90AboutZ", x="0deg", y="0deg", z="90deg")
     rPlus180AboutXPlus90AboutY = geom.structure.Rotation("rPlus180AboutXPlus90AboutY", x="180deg", y="90deg", z="0deg")
+    rMinus90AboutXPlus90AboutY = geom.structure.Rotation("rMinus90AboutXPlus90AboutY", x="270deg", y="90deg", z="0deg")
